@@ -1,0 +1,14 @@
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\bin\Debug\OBDiiSimulator.exe.config
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\bin\Debug\OBDiiSimulator.exe
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\bin\Debug\OBDiiSimulator.pdb
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.csproj.AssemblyReference.cache
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.Form1.resources
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.Properties.Resources.resources
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.csproj.GenerateResource.cache
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.csproj.CoreCompileInputs.cache
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.exe
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.pdb
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSimulator.exe.config
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\bin\Debug\InTheHand.Net.Personal.dll
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\bin\Debug\InTheHand.Net.Personal.xml
+C:\Users\pedroduarte-ieg\source\repos\OBDiiSimulator\OBDiiSimulator\obj\Debug\OBDiiSim.130384F5.Up2Date
