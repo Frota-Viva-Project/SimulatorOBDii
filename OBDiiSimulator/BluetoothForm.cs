@@ -20,6 +20,11 @@ namespace OBDiiSimulator
         private Button sendButton;
         private Button serverButton;
         private Label statusLabel;
+        private TableLayoutPanel mainPanel;
+        private Panel controlPanel;
+        private Panel statusPanel;
+        private Panel messagePanel;
+        private Label messageLabel;
         private ProgressBar discoveryProgress;
 
         public BluetoothForm()
@@ -32,160 +37,170 @@ namespace OBDiiSimulator
 
         private void InitializeComponent()
         {
-            this.Size = new Size(800, 600);
+            this.mainPanel = new System.Windows.Forms.TableLayoutPanel();
+            this.controlPanel = new System.Windows.Forms.Panel();
+            this.discoverButton = new System.Windows.Forms.Button();
+            this.connectButton = new System.Windows.Forms.Button();
+            this.disconnectButton = new System.Windows.Forms.Button();
+            this.discoveryProgress = new System.Windows.Forms.ProgressBar();
+            this.statusPanel = new System.Windows.Forms.Panel();
+            this.statusLabel = new System.Windows.Forms.Label();
+            this.serverButton = new System.Windows.Forms.Button();
+            this.deviceListView = new System.Windows.Forms.ListView();
+            this.messagePanel = new System.Windows.Forms.Panel();
+            this.messageLabel = new System.Windows.Forms.Label();
+            this.messageTextBox = new System.Windows.Forms.TextBox();
+            this.sendButton = new System.Windows.Forms.Button();
+            this.logTextBox = new System.Windows.Forms.TextBox();
+            this.mainPanel.SuspendLayout();
+            this.controlPanel.SuspendLayout();
+            this.statusPanel.SuspendLayout();
+            this.messagePanel.SuspendLayout();
+            this.SuspendLayout();
+            // 
+            // mainPanel
+            // 
+            this.mainPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 60F));
+            this.mainPanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 40F));
+            this.mainPanel.Controls.Add(this.controlPanel, 0, 0);
+            this.mainPanel.Controls.Add(this.statusPanel, 1, 0);
+            this.mainPanel.Controls.Add(this.deviceListView, 0, 1);
+            this.mainPanel.Controls.Add(this.messagePanel, 0, 2);
+            this.mainPanel.Controls.Add(this.logTextBox, 0, 3);
+            this.mainPanel.Location = new System.Drawing.Point(0, 0);
+            this.mainPanel.Name = "mainPanel";
+            this.mainPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 60F));
+            this.mainPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.mainPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 80F));
+            this.mainPanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+            this.mainPanel.Size = new System.Drawing.Size(200, 100);
+            this.mainPanel.TabIndex = 0;
+            // 
+            // controlPanel
+            // 
+            this.controlPanel.Controls.Add(this.discoverButton);
+            this.controlPanel.Controls.Add(this.connectButton);
+            this.controlPanel.Controls.Add(this.disconnectButton);
+            this.controlPanel.Controls.Add(this.discoveryProgress);
+            this.controlPanel.Location = new System.Drawing.Point(3, 3);
+            this.controlPanel.Name = "controlPanel";
+            this.controlPanel.Size = new System.Drawing.Size(114, 54);
+            this.controlPanel.TabIndex = 0;
+            // 
+            // discoverButton
+            // 
+            this.discoverButton.Location = new System.Drawing.Point(0, 0);
+            this.discoverButton.Name = "discoverButton";
+            this.discoverButton.Size = new System.Drawing.Size(75, 23);
+            this.discoverButton.TabIndex = 0;
+            // 
+            // connectButton
+            // 
+            this.connectButton.Location = new System.Drawing.Point(0, 0);
+            this.connectButton.Name = "connectButton";
+            this.connectButton.Size = new System.Drawing.Size(75, 23);
+            this.connectButton.TabIndex = 1;
+            // 
+            // disconnectButton
+            // 
+            this.disconnectButton.Location = new System.Drawing.Point(0, 0);
+            this.disconnectButton.Name = "disconnectButton";
+            this.disconnectButton.Size = new System.Drawing.Size(75, 23);
+            this.disconnectButton.TabIndex = 2;
+            // 
+            // discoveryProgress
+            // 
+            this.discoveryProgress.Location = new System.Drawing.Point(0, 0);
+            this.discoveryProgress.Name = "discoveryProgress";
+            this.discoveryProgress.Size = new System.Drawing.Size(100, 23);
+            this.discoveryProgress.TabIndex = 3;
+            // 
+            // statusPanel
+            // 
+            this.statusPanel.Controls.Add(this.statusLabel);
+            this.statusPanel.Controls.Add(this.serverButton);
+            this.statusPanel.Location = new System.Drawing.Point(123, 3);
+            this.statusPanel.Name = "statusPanel";
+            this.statusPanel.Size = new System.Drawing.Size(74, 54);
+            this.statusPanel.TabIndex = 1;
+            // 
+            // statusLabel
+            // 
+            this.statusLabel.Location = new System.Drawing.Point(0, 0);
+            this.statusLabel.Name = "statusLabel";
+            this.statusLabel.Size = new System.Drawing.Size(100, 23);
+            this.statusLabel.TabIndex = 0;
+            // 
+            // serverButton
+            // 
+            this.serverButton.Location = new System.Drawing.Point(0, 0);
+            this.serverButton.Name = "serverButton";
+            this.serverButton.Size = new System.Drawing.Size(75, 23);
+            this.serverButton.TabIndex = 1;
+            // 
+            // deviceListView
+            // 
+            this.deviceListView.HideSelection = false;
+            this.deviceListView.Location = new System.Drawing.Point(3, 63);
+            this.deviceListView.Name = "deviceListView";
+            this.deviceListView.Size = new System.Drawing.Size(114, 1);
+            this.deviceListView.TabIndex = 2;
+            this.deviceListView.UseCompatibleStateImageBehavior = false;
+            // 
+            // messagePanel
+            // 
+            this.messagePanel.Controls.Add(this.messageLabel);
+            this.messagePanel.Controls.Add(this.messageTextBox);
+            this.messagePanel.Controls.Add(this.sendButton);
+            this.messagePanel.Location = new System.Drawing.Point(3, 43);
+            this.messagePanel.Name = "messagePanel";
+            this.messagePanel.Size = new System.Drawing.Size(114, 74);
+            this.messagePanel.TabIndex = 3;
+            // 
+            // messageLabel
+            // 
+            this.messageLabel.Location = new System.Drawing.Point(0, 0);
+            this.messageLabel.Name = "messageLabel";
+            this.messageLabel.Size = new System.Drawing.Size(100, 23);
+            this.messageLabel.TabIndex = 0;
+            // 
+            // messageTextBox
+            // 
+            this.messageTextBox.Location = new System.Drawing.Point(0, 0);
+            this.messageTextBox.Name = "messageTextBox";
+            this.messageTextBox.Size = new System.Drawing.Size(100, 22);
+            this.messageTextBox.TabIndex = 1;
+            // 
+            // sendButton
+            // 
+            this.sendButton.Location = new System.Drawing.Point(0, 0);
+            this.sendButton.Name = "sendButton";
+            this.sendButton.Size = new System.Drawing.Size(75, 23);
+            this.sendButton.TabIndex = 2;
+            // 
+            // logTextBox
+            // 
+            this.mainPanel.SetColumnSpan(this.logTextBox, 2);
+            this.logTextBox.Location = new System.Drawing.Point(3, 123);
+            this.logTextBox.Name = "logTextBox";
+            this.logTextBox.Size = new System.Drawing.Size(100, 22);
+            this.logTextBox.TabIndex = 4;
+            // 
+            // BluetoothForm
+            // 
+            this.ClientSize = new System.Drawing.Size(782, 553);
+            this.Controls.Add(this.mainPanel);
+            this.Name = "BluetoothForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Gerenciador Bluetooth - 32feet.NET";
-            this.StartPosition = FormStartPosition.CenterScreen;
+            this.mainPanel.ResumeLayout(false);
+            this.mainPanel.PerformLayout();
+            this.controlPanel.ResumeLayout(false);
+            this.statusPanel.ResumeLayout(false);
+            this.messagePanel.ResumeLayout(false);
+            this.messagePanel.PerformLayout();
+            this.ResumeLayout(false);
 
-            // Painel principal
-            var mainPanel = new TableLayoutPanel()
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 4
-            };
-
-            // Configurar colunas e linhas
-            mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 60));
-            mainPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 40));
-            mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-            mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-            mainPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 80));
-            mainPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-
-            // Painel de controle superior
-            var controlPanel = new Panel() { Dock = DockStyle.Fill };
-
-            discoverButton = new Button()
-            {
-                Text = "Descobrir Dispositivos",
-                Location = new Point(10, 10),
-                Size = new Size(150, 35),
-                BackColor = Color.DodgerBlue,
-                ForeColor = Color.White,
-                Font = new Font("Arial", 9, FontStyle.Bold)
-            };
-
-            connectButton = new Button()
-            {
-                Text = "Conectar",
-                Location = new Point(170, 10),
-                Size = new Size(100, 35),
-                BackColor = Color.Green,
-                ForeColor = Color.White,
-                Font = new Font("Arial", 9, FontStyle.Bold),
-                Enabled = false
-            };
-
-            disconnectButton = new Button()
-            {
-                Text = "Desconectar",
-                Location = new Point(280, 10),
-                Size = new Size(100, 35),
-                BackColor = Color.Red,
-                ForeColor = Color.White,
-                Font = new Font("Arial", 9, FontStyle.Bold),
-                Enabled = false
-            };
-
-            discoveryProgress = new ProgressBar()
-            {
-                Location = new Point(390, 15),
-                Size = new Size(150, 25),
-                Style = ProgressBarStyle.Marquee,
-                Visible = false
-            };
-
-            controlPanel.Controls.AddRange(new Control[] { discoverButton, connectButton, disconnectButton, discoveryProgress });
-
-            // Status
-            var statusPanel = new Panel() { Dock = DockStyle.Fill };
-            statusLabel = new Label()
-            {
-                Text = "Status: Desconectado",
-                Location = new Point(10, 15),
-                Size = new Size(200, 25),
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                ForeColor = Color.Red
-            };
-
-            serverButton = new Button()
-            {
-                Text = "Iniciar Servidor",
-                Location = new Point(10, 40),
-                Size = new Size(120, 30),
-                BackColor = Color.Purple,
-                ForeColor = Color.White,
-                Font = new Font("Arial", 9, FontStyle.Bold)
-            };
-
-            statusPanel.Controls.AddRange(new Control[] { statusLabel, serverButton });
-
-            // Lista de dispositivos
-            deviceListView = new ListView()
-            {
-                Dock = DockStyle.Fill,
-                View = View.Details,
-                FullRowSelect = true,
-                GridLines = true,
-                MultiSelect = false
-            };
-
-            deviceListView.Columns.Add("Nome", 180);
-            deviceListView.Columns.Add("Endereço", 120);
-            deviceListView.Columns.Add("Sinal", 60);
-            deviceListView.Columns.Add("Status", 80);
-
-            // Painel de mensagem
-            var messagePanel = new Panel() { Dock = DockStyle.Fill };
-
-            var messageLabel = new Label()
-            {
-                Text = "Mensagem:",
-                Location = new Point(5, 5),
-                Size = new Size(70, 20)
-            };
-
-            messageTextBox = new TextBox()
-            {
-                Location = new Point(5, 25),
-                Size = new Size(250, 25),
-                Text = "AT+VERSION"
-            };
-
-            sendButton = new Button()
-            {
-                Text = "Enviar",
-                Location = new Point(265, 25),
-                Size = new Size(70, 25),
-                BackColor = Color.Orange,
-                ForeColor = Color.White,
-                Enabled = false
-            };
-
-            messagePanel.Controls.AddRange(new Control[] { messageLabel, messageTextBox, sendButton });
-
-            // Log de eventos
-            logTextBox = new TextBox()
-            {
-                Dock = DockStyle.Fill,
-                Multiline = true,
-                ScrollBars = ScrollBars.Vertical,
-                ReadOnly = true,
-                BackColor = Color.Black,
-                ForeColor = Color.Lime,
-                Font = new Font("Consolas", 9)
-            };
-
-            // Adicionar controles ao layout principal
-            mainPanel.Controls.Add(controlPanel, 0, 0);
-            mainPanel.Controls.Add(statusPanel, 1, 0);
-            mainPanel.Controls.Add(deviceListView, 0, 1);
-            mainPanel.Controls.Add(messagePanel, 0, 2);
-            mainPanel.Controls.Add(logTextBox, 0, 3);
-
-            mainPanel.SetColumnSpan(logTextBox, 2);
-
-            this.Controls.Add(mainPanel);
         }
 
         private void SetupEventHandlers()

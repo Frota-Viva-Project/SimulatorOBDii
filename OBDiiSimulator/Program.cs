@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DotNetEnv;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,6 +15,12 @@ namespace OBDiiSimulator
         [STAThread]
         static void Main()
         {
+            Env.Load();
+
+            var db = new Database();
+            Console.WriteLine($"ConnectionString carregada: {db.GetConnectionString()}");
+
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new Form1());

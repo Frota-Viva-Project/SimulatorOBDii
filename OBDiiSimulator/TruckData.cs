@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace OBDiiSimulator
 {
@@ -10,8 +9,8 @@ namespace OBDiiSimulator
     {
         // Parâmetros Básicos do Motor
         public DateTime Timestamp { get; set; } = DateTime.Now;
-        public double EngineRPM { get; set; } = 800;
-        public double EngineLoad { get; set; } = 0; // Carga do motor (%)
+        public double EngineRPM { get; set; } = 900; // RPM mínimo mais realista para diesel
+        public double EngineLoad { get; set; } = 5; // Carga mínima em marcha lenta
         public double ThrottlePosition { get; set; } = 0; // Posição do acelerador (%)
         public int EngineRunTime { get; set; } = 0; // Tempo de motor ligado (segundos)
 
@@ -21,7 +20,7 @@ namespace OBDiiSimulator
         public double TransmissionTemp { get; set; } = 90;
 
         // Pressões
-        public double OilPressure { get; set; } = 400; // Pressão do óleo (kPa)
+        public double OilPressure { get; set; } = 450; // Pressão do óleo mais alta para diesel (kPa)
         public double FuelPressure { get; set; } = 500; // Pressão do combustível (kPa)
         public double ManifoldPressure { get; set; } = 30; // Pressão do coletor de admissão (kPa)
 
@@ -31,20 +30,28 @@ namespace OBDiiSimulator
         public double Mileage { get; set; } = 125000; // Quilometragem (km)
 
         // Combustível
-        public double FuelConsumption { get; set; } = 25; // Consumo (L/100km)
+        public double FuelConsumption { get; set; } = 35; // Consumo realista para caminhão (L/100km)
         public double FuelLevel { get; set; } = 75; // Nível de combustível (%)
         public string FuelSystemStatus { get; set; } = "CLOSED_LOOP"; // Status do sistema
 
         // Sensores
         public double OxygenSensor1 { get; set; } = 0.45; // Sensor O2 banco 1 (V)
         public double OxygenSensor2 { get; set; } = 0.45; // Sensor O2 banco 2 (V)
-        public double BatteryVoltage { get; set; } = 12.8; // Tensão da bateria (V)
+        public double BatteryVoltage { get; set; } = 24.0; // Tensão da bateria 24V para caminhão
+
+        // ID do caminhão
+        public int TruckId { get; set; } = 1;
 
         // Códigos de Diagnóstico
         public List<string> ActiveDTCs { get; set; } = new List<string>();
         public List<string> PendingDTCs { get; set; } = new List<string>();
 
-        // Possíveis DTCs para simulação
+        // Controles internos para simulação
+        private Random _random = new Random();
+        private DateTime _lastDtcCheck = DateTime.Now;
+        private DateTime _lastDtcGeneration = DateTime.Now;
+
+        // Possíveis DTCs para simulação de caminhão
         private static readonly string[] PossibleDTCs = {
             "P0300", // Random/Multiple Cylinder Misfire
             "P0171", // System Too Lean (Bank 1)
@@ -58,10 +65,240 @@ namespace OBDiiSimulator
             "P0401", // EGR Flow Insufficient
             "P0420", // Catalyst System Efficiency Below Threshold
             "P0505", // Idle Control System Malfunction
+            "P0562", // System Voltage Low
+            "P0563", // System Voltage High
+            "P0602", // Control Module Programming Error
+            "P2146", // Fuel Injector Group A Supply Voltage Circuit/Open
         };
+
+        // Construtor - pode inicializar com alguns DTCs se necessário
+        public TruckData()
+        {
+            // Simular condição inicial com possibilidade de DTCs existentes
+            if (_random.NextDouble() < 0.3) // 30% chance de começar com algum DTC
+            {
+                GenerateInitialDTCs();
+            }
+        }
+
+        // Método para gerar DTCs iniciais
+        private void GenerateInitialDTCs()
+        {
+            int numDtcs = _random.Next(1, 3); // 1 a 2 DTCs iniciais
+
+            for (int i = 0; i < numDtcs; i++)
+            {
+                string dtc = PossibleDTCs[_random.Next(PossibleDTCs.Length)];
+
+                if (!ActiveDTCs.Contains(dtc) && !PendingDTCs.Contains(dtc))
+                {
+                    if (_random.NextDouble() < 0.6) // 60% chance de ser pendente inicialmente
+                    {
+                        PendingDTCs.Add(dtc);
+                    }
+                    else
+                    {
+                        ActiveDTCs.Add(dtc);
+                    }
+                }
+            }
+        }
+
+        // Método para atualizar DTCs baseado em condições do veículo
+        public void UpdateDTCs()
+        {
+            Timestamp = DateTime.Now;
+
+            // Atualiza DTCs a cada 30 segundos
+            if ((DateTime.Now - _lastDtcCheck).TotalSeconds >= 30)
+            {
+                _lastDtcCheck = DateTime.Now;
+
+                // Promover DTCs pendentes para ativos
+                PromotePendingDTCs();
+
+                // Gerar novos DTCs baseados em condições
+                GenerateDTCsBasedOnConditions();
+
+                // Ocasionalmente limpar DTCs (simulando reparo)
+                if (_random.NextDouble() < 0.05) // 5% chance a cada verificação
+                {
+                    ClearSomeDTCs();
+                }
+            }
+        }
+
+        // Gerar DTCs baseado nas condições atuais do veículo
+        private void GenerateDTCsBasedOnConditions()
+        {
+            // Só gera novos DTCs se não passou muito tempo desde a última geração
+            if ((DateTime.Now - _lastDtcGeneration).TotalMinutes < 5)
+                return;
+
+            List<string> potentialDTCs = new List<string>();
+
+            // Condições que podem gerar DTCs específicos
+            if (CoolantTemp > 110) // Superaquecimento
+            {
+                potentialDTCs.Add("P0118");
+            }
+
+            if (BatteryVoltage < 22 || BatteryVoltage > 28) // Problemas de voltagem
+            {
+                potentialDTCs.Add(BatteryVoltage < 22 ? "P0562" : "P0563");
+            }
+
+            if (IntakeAirTemp > 60) // Temperatura de admissão alta
+            {
+                potentialDTCs.Add("P0113");
+            }
+
+            if (EngineLoad > 90) // Carga muito alta
+            {
+                potentialDTCs.Add("P0300"); // Pode causar misfire
+            }
+
+            if (FuelLevel < 10) // Combustível baixo pode causar problemas
+            {
+                potentialDTCs.Add("P0171"); // Sistema lean
+            }
+
+            // Adicionar DTCs potenciais ou aleatórios
+            if (potentialDTCs.Count > 0)
+            {
+                string dtc = potentialDTCs[_random.Next(potentialDTCs.Count)];
+                AddDTCIfNotExists(dtc);
+                _lastDtcGeneration = DateTime.Now;
+            }
+            else if (_random.NextDouble() < 0.15) // 15% chance de DTC aleatório
+            {
+                AddRandomDTC();
+                _lastDtcGeneration = DateTime.Now;
+            }
+        }
+
+        // Método auxiliar para adicionar DTC se não existir
+        private void AddDTCIfNotExists(string dtc)
+        {
+            if (!ActiveDTCs.Contains(dtc) && !PendingDTCs.Contains(dtc))
+            {
+                if (_random.NextDouble() < 0.7) // 70% chance de ir para pendente primeiro
+                {
+                    PendingDTCs.Add(dtc);
+                    Console.WriteLine($"DTC Pendente adicionado: {dtc}");
+                }
+                else
+                {
+                    ActiveDTCs.Add(dtc);
+                    Console.WriteLine($"DTC Ativo adicionado: {dtc}");
+                }
+            }
+        }
+
+        public void AddRandomDTC()
+        {
+            string dtc = PossibleDTCs[_random.Next(PossibleDTCs.Length)];
+            AddDTCIfNotExists(dtc);
+        }
+
+        public void PromotePendingDTCs()
+        {
+            for (int i = PendingDTCs.Count - 1; i >= 0; i--)
+            {
+                if (_random.NextDouble() < 0.3) // 30% chance de promover
+                {
+                    string dtc = PendingDTCs[i];
+                    PendingDTCs.RemoveAt(i);
+                    if (!ActiveDTCs.Contains(dtc))
+                    {
+                        ActiveDTCs.Add(dtc);
+                        Console.WriteLine($"DTC promovido para ativo: {dtc}");
+                    }
+                }
+            }
+        }
+
+        // Limpar alguns DTCs (simulando reparos)
+        private void ClearSomeDTCs()
+        {
+            if (PendingDTCs.Count > 0 && _random.NextDouble() < 0.5)
+            {
+                string clearedDTC = PendingDTCs[0];
+                PendingDTCs.RemoveAt(0);
+                Console.WriteLine($"DTC Pendente limpo: {clearedDTC}");
+            }
+
+            if (ActiveDTCs.Count > 0 && _random.NextDouble() < 0.3)
+            {
+                string clearedDTC = ActiveDTCs[0];
+                ActiveDTCs.RemoveAt(0);
+                Console.WriteLine($"DTC Ativo limpo: {clearedDTC}");
+            }
+        }
+
+        public void ClearAllDTCs()
+        {
+            int totalCleared = ActiveDTCs.Count + PendingDTCs.Count;
+            ActiveDTCs.Clear();
+            PendingDTCs.Clear();
+            if (totalCleared > 0)
+            {
+                Console.WriteLine($"Todos os DTCs foram limpos ({totalCleared} códigos)");
+            }
+        }
+
+        public int GetTotalDTCCount()
+        {
+            return ActiveDTCs.Count + PendingDTCs.Count;
+        }
+
+        public string GetDTCStatus()
+        {
+            if (ActiveDTCs.Count > 0)
+                return $"ATIVO: {ActiveDTCs.Count}, PENDENTE: {PendingDTCs.Count}";
+            else if (PendingDTCs.Count > 0)
+                return $"PENDENTE: {PendingDTCs.Count}";
+            else
+                return "SEM DTCs";
+        }
+
+        // Métodos para conversão de DTCs para string (para banco de dados)
+        public string GetActiveDTCsAsString()
+        {
+            return ActiveDTCs.Count > 0 ? string.Join(",", ActiveDTCs) : "";
+        }
+
+        public string GetPendingDTCsAsString()
+        {
+            return PendingDTCs.Count > 0 ? string.Join(",", PendingDTCs) : "";
+        }
+
+        // Método para forçar adição de DTCs (útil para testes)
+        public void ForceAddDTC(string dtc, bool isActive = false)
+        {
+            if (isActive)
+            {
+                if (!ActiveDTCs.Contains(dtc))
+                {
+                    ActiveDTCs.Add(dtc);
+                    Console.WriteLine($"DTC forçado como ativo: {dtc}");
+                }
+            }
+            else
+            {
+                if (!PendingDTCs.Contains(dtc))
+                {
+                    PendingDTCs.Add(dtc);
+                    Console.WriteLine($"DTC forçado como pendente: {dtc}");
+                }
+            }
+        }
 
         public string GetOBDResponse(string pid)
         {
+            // Atualizar DTCs antes de processar comandos OBD
+            UpdateDTCs();
+
             try
             {
                 switch (pid.ToUpper())
@@ -170,7 +407,7 @@ namespace OBDiiSimulator
                         return $"41 42 {(voltageHex >> 8):X2} {(voltageHex & 0xFF):X2}";
 
                     case "0151": // Fuel Type
-                        return "41 51 01"; // Gasoline
+                        return "41 51 02"; // Diesel
 
                     // Mode 03 - Request trouble codes
                     case "03":
@@ -178,8 +415,7 @@ namespace OBDiiSimulator
 
                     // Mode 04 - Clear trouble codes
                     case "04":
-                        ActiveDTCs.Clear();
-                        PendingDTCs.Clear();
+                        ClearAllDTCs();
                         return "44";
 
                     // Mode 07 - Request pending trouble codes
@@ -283,63 +519,6 @@ namespace OBDiiSimulator
             }
 
             return "00 00";
-        }
-
-        public void AddRandomDTC()
-        {
-            Random random = new Random();
-            string dtc = PossibleDTCs[random.Next(PossibleDTCs.Length)];
-
-            if (!ActiveDTCs.Contains(dtc) && !PendingDTCs.Contains(dtc))
-            {
-                // 70% chance to go to pending first, 30% directly to active
-                if (random.NextDouble() < 0.7)
-                {
-                    PendingDTCs.Add(dtc);
-                }
-                else
-                {
-                    ActiveDTCs.Add(dtc);
-                }
-            }
-        }
-
-        public void PromotePendingDTCs()
-        {
-            Random random = new Random();
-            for (int i = PendingDTCs.Count - 1; i >= 0; i--)
-            {
-                if (random.NextDouble() < 0.3) // 30% chance to promote
-                {
-                    string dtc = PendingDTCs[i];
-                    PendingDTCs.RemoveAt(i);
-                    if (!ActiveDTCs.Contains(dtc))
-                    {
-                        ActiveDTCs.Add(dtc);
-                    }
-                }
-            }
-        }
-
-        public void ClearAllDTCs()
-        {
-            ActiveDTCs.Clear();
-            PendingDTCs.Clear();
-        }
-
-        public int GetTotalDTCCount()
-        {
-            return ActiveDTCs.Count + PendingDTCs.Count;
-        }
-
-        public string GetDTCStatus()
-        {
-            if (ActiveDTCs.Count > 0)
-                return $"ATIVO: {ActiveDTCs.Count}, PENDENTE: {PendingDTCs.Count}";
-            else if (PendingDTCs.Count > 0)
-                return $"PENDENTE: {PendingDTCs.Count}";
-            else
-                return "SEM DTCs";
         }
     }
 }

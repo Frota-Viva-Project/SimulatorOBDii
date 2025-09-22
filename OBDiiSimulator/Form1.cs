@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO.Ports;
 using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace OBDiiSimulator
@@ -25,7 +23,7 @@ namespace OBDiiSimulator
 
         private void InitializeSimulators()
         {
-            dataSimulator = new TruckDataSimulator();
+            dataSimulator = new TruckDataSimulator(1);
             bluetoothSimulator = new BluetoothSimulator();
 
             bluetoothSimulator.SetDataSimulator(dataSimulator);
@@ -495,6 +493,48 @@ namespace OBDiiSimulator
             updateTimer?.Stop();
 
             base.OnFormClosing(e);
+        }
+
+        private async void SendToDatabase_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OnLogMessage("Iniciando envio para banco de dados PostgreSQL...");
+
+                // Desabilita o botão temporariamente
+                var button = sender as Button;
+                if (button != null)
+                {
+                    button.Enabled = false;
+                    button.Text = "Enviando...";
+                }
+
+                // Chama o método correto da instância do dataSimulator
+                await dataSimulator.ForceSendToDatabase();
+
+                // Reabilita o botão
+                if (button != null)
+                {
+                    button.Enabled = true;
+                    button.Text = "Mandar pro Banco de Dados";
+                }
+
+                OnLogMessage("Dados enviados com sucesso!");
+            }
+            catch (Exception ex)
+            {
+                OnLogMessage($"Erro ao enviar dados para o banco: {ex.Message}");
+                MessageBox.Show($"Erro ao enviar dados: {ex.Message}", "Erro",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                // Reabilita o botão em caso de erro
+                var button = sender as Button;
+                if (button != null)
+                {
+                    button.Enabled = true;
+                    button.Text = "Mandar pro Banco de Dados";
+                }
+            }
         }
     }
 }

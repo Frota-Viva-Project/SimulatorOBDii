@@ -197,6 +197,21 @@ namespace OBDiiSimulator
             };
             parent.Controls.Add(dtcStatusLabel);
 
+            // Send to Database Button
+            Button sendToDatabase = new Button()
+            {
+                Text = "Mandar pro Banco de Dados",
+                Location = new Point(500, 20), 
+                Size = new Size(150, 40),
+                BackColor = Color.LightBlue,
+                ForeColor = Color.DarkBlue,
+                Font = new Font("Arial", 9, FontStyle.Bold),
+                Name = "sendToDbButton"
+            };
+
+            sendToDatabase.Click += SendToDatabase_Click;
+            parent.Controls.Add(sendToDatabase);
+
             // Manual Controls Group
             GroupBox manualGroup = new GroupBox()
             {
@@ -228,7 +243,7 @@ namespace OBDiiSimulator
         {
             // RPM Control
             CreateTrackBarWithLabel(parent, "rpmTrackBar", "rpmControlLabel",
-                "RPM: 800", 20, 30, 600, 3000, 800, RPMTrackBar_ValueChanged);
+                "RPM: 1000", 20, 30, 600, 3000, 800, RPMTrackBar_ValueChanged);
 
             // Temperature Control
             CreateTrackBarWithLabel(parent, "tempTrackBar", "tempControlLabel",
@@ -418,7 +433,7 @@ namespace OBDiiSimulator
             logPanel.Controls.Add(logTextBox);
             this.Controls.Add(logPanel);
         }
-
+ 
         #endregion
     }
 }
