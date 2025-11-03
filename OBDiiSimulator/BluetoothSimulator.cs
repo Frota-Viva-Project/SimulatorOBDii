@@ -137,7 +137,7 @@ namespace OBDiiSimulator
             random = new Random();
             connectionTimer = new Timer(CheckConnectionHealth, null, Timeout.Infinite, Timeout.Infinite);
             cancellationTokenSource = new CancellationTokenSource();
-            bluetoothClient = new BluetoothClient();
+            //bluetoothClient = new BluetoothClient();
         }
 
         public void SetDataSimulator(TruckDataSimulator simulator)

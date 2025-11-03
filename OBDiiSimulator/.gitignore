@@ -1,0 +1,20 @@
+# Build results
+bin/
+obj/
+packages/
+
+# Visual Studio
+.vs/
+*.vsidx
+*.suo
+*.user
+FileContentIndex/
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# NuGet
+*.nupkg
+*.snupkg

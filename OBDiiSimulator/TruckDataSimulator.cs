@@ -13,25 +13,51 @@ namespace OBDiiSimulator
         private bool isDtcMode = false;
         private bool isManualMode = false;
 
-        // Manual control values
-        private double manualRPM = 800;
-        private double manualTemp = 85;
+        // Manual control values - valores mais realistas
+        private double manualRPM = 1200; // RPM mínimo realista para diesel
+        private double manualTemp = 88;
         private double manualSpeed = 0;
 
         private Task simulationTask;
+        private Task databaseTask;
         private CancellationTokenSource cancellationTokenSource;
 
         // Simulation variables
         private DateTime startTime;
         private double baselineMileage;
+        private DateTime lastDatabaseSend;
+
+        // Database configuration
+        private readonly Database database;
+        private readonly int truckId;
+        private readonly AlertManager alertManager;
+        private DateTime lastAlertCheck = DateTime.Now;
 
         public event Action<TruckData> DataUpdated;
 
-        public TruckDataSimulator()
+        public TruckDataSimulator(int truckId)
         {
+            this.truckId = truckId;
+            this.database = new Database(); // Usa connection string do app.config
+            this.alertManager = new AlertManager(database);
             currentData = new TruckData();
             random = new Random();
             startTime = DateTime.Now;
+            lastDatabaseSend = DateTime.Now;
+            lastAlertCheck = DateTime.Now;
+            baselineMileage = currentData.Mileage;
+        }
+
+        public TruckDataSimulator(int truckId, Database database)
+        {
+            this.truckId = truckId;
+            this.database = database ?? throw new ArgumentNullException(nameof(database));
+            this.alertManager = new AlertManager(database);
+            currentData = new TruckData();
+            random = new Random();
+            startTime = DateTime.Now;
+            lastDatabaseSend = DateTime.Now;
+            lastAlertCheck = DateTime.Now;
             baselineMileage = currentData.Mileage;
         }
 
@@ -41,8 +67,11 @@ namespace OBDiiSimulator
             {
                 isRunning = true;
                 startTime = DateTime.Now;
+                lastDatabaseSend = DateTime.Now;
                 cancellationTokenSource = new CancellationTokenSource();
+
                 simulationTask = Task.Run(() => SimulationLoop(cancellationTokenSource.Token));
+                databaseTask = Task.Run(() => DatabaseSendLoop(cancellationTokenSource.Token));
             }
         }
 
@@ -69,7 +98,7 @@ namespace OBDiiSimulator
 
         public void SetManualRPM(double rpm)
         {
-            manualRPM = rpm;
+            manualRPM = Math.Max(1000, rpm); // Mínimo realista para diesel
         }
 
         public void SetManualTemperature(double temp)
@@ -90,6 +119,105 @@ namespace OBDiiSimulator
         public TruckData GetCurrentData()
         {
             return currentData;
+        }
+
+        /// <summary>
+        /// Força o envio imediato dos dados para o banco
+        /// </summary>
+        /// <returns>Task para operação assíncrona</returns>
+        public async Task ForceSendToDatabase()
+        {
+            try
+            {
+                await database.InsertTruckDataAsync(truckId, currentData);
+                lastDatabaseSend = DateTime.Now;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao forçar envio para o banco: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Testa a conexão com o banco de dados
+        /// </summary>
+        /// <returns>True se a conexão foi bem-sucedida</returns>
+        public async Task<bool> TestDatabaseConnection()
+        {
+            return await database.TestConnectionAsync();
+        }
+
+        /// <summary>
+        /// Força a verificação de alertas manualmente
+        /// </summary>
+        /// <param name="idUsuario">ID do usuário</param>
+        public async Task ForceAlertCheckAsync(int idUsuario)
+        {
+            try
+            {
+                await alertManager.MonitorAndProcessAlertsAsync(currentData, idUsuario);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao forçar verificação de alertas: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Simula condições críticas para testar alertas
+        /// </summary>
+        public void SimulateCriticalConditions()
+        {
+            Console.WriteLine("🚨 Simulando condições críticas para teste de alertas...");
+            
+            // Temperatura alta
+            currentData.CoolantTemp = 125.0;
+            
+            // Pressão de óleo baixa
+            currentData.OilPressure = 100.0;
+            
+            // Combustível baixo
+            currentData.FuelLevel = 8.0;
+            
+            // Bateria baixa
+            currentData.BatteryVoltage = 20.5;
+            
+            // RPM alto
+            currentData.EngineRPM = 3500;
+            
+            // Adicionar DTC crítico
+            currentData.ForceAddDTC("P0300", true); // Misfire
+            currentData.ForceAddDTC("P0118", true); // Coolant temp high
+            
+            Console.WriteLine("✅ Condições críticas simuladas:");
+            Console.WriteLine($"   - Temperatura: {currentData.CoolantTemp}°C");
+            Console.WriteLine($"   - Pressão óleo: {currentData.OilPressure} kPa");
+            Console.WriteLine($"   - Combustível: {currentData.FuelLevel}%");
+            Console.WriteLine($"   - Bateria: {currentData.BatteryVoltage}V");
+            Console.WriteLine($"   - RPM: {currentData.EngineRPM}");
+            Console.WriteLine($"   - DTCs ativos: {currentData.ActiveDTCs.Count}");
+        }
+
+        /// <summary>
+        /// Restaura condições normais
+        /// </summary>
+        public void RestoreNormalConditions()
+        {
+            Console.WriteLine("🔧 Restaurando condições normais...");
+            
+            // Valores normais
+            currentData.CoolantTemp = 88.0;
+            currentData.OilPressure = 450.0;
+            currentData.FuelLevel = 75.0;
+            currentData.BatteryVoltage = 24.2;
+            currentData.EngineRPM = 1200.0;
+            
+            // Limpar DTCs
+            currentData.ClearAllDTCs();
+            
+            Console.WriteLine("✅ Condições normais restauradas");
         }
 
         private void SimulationLoop(CancellationToken cancellationToken)
@@ -114,6 +242,25 @@ namespace OBDiiSimulator
                     }
                 }
 
+                // Verificar alertas a cada 30 segundos
+                if (DateTime.Now - lastAlertCheck >= TimeSpan.FromSeconds(30))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            // Usar truckId como idUsuario por simplicidade
+                            // Em um cenário real, você teria uma tabela de mapeamento
+                            await alertManager.MonitorAndProcessAlertsAsync(currentData, truckId);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Erro no monitoramento de alertas: {ex.Message}");
+                        }
+                    });
+                    lastAlertCheck = DateTime.Now;
+                }
+
                 DataUpdated?.Invoke(currentData);
 
                 try
@@ -123,6 +270,32 @@ namespace OBDiiSimulator
                 catch (ThreadInterruptedException)
                 {
                     break;
+                }
+            }
+        }
+
+        private async Task DatabaseSendLoop(CancellationToken cancellationToken)
+        {
+            while (isRunning && !cancellationToken.IsCancellationRequested)
+            {
+                try
+                {
+                    // Envia dados a cada 10 minutos
+                    if (DateTime.Now - lastDatabaseSend >= TimeSpan.FromMinutes(10))
+                    {
+                        await database.InsertTruckDataAsync(truckId, currentData);
+                        lastDatabaseSend = DateTime.Now;
+                    }
+
+                    await Task.Delay(30000, cancellationToken); // Verifica a cada 30 segundos
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Erro ao enviar dados para o banco: {ex.Message}");
                 }
             }
         }
@@ -147,7 +320,7 @@ namespace OBDiiSimulator
         {
             if (isManualMode)
             {
-                currentData.EngineRPM = manualRPM;
+                currentData.EngineRPM = Math.Max(1000, manualRPM); // Força mínimo realista
             }
             else
             {
@@ -155,23 +328,26 @@ namespace OBDiiSimulator
                 {
                     // Critical mode: erratic RPM
                     currentData.EngineRPM = random.NextDouble() > 0.5 ?
-                        random.Next(0, 400) : random.Next(3200, 3800);
+                        random.Next(2300, 2800) : random.Next(3200, 3800);
                 }
                 else
                 {
-                    // Normal fluctuation around idle or driving RPM
-                    double baseRpm = 600 + Math.Sin(DateTime.Now.Millisecond / 1000.0 * Math.PI) * 50;
+                    // Normal fluctuation - RPM mínimo realista para diesel
+                    double baseRpm = 1100 + Math.Sin(DateTime.Now.Millisecond / 1000.0 * Math.PI) * 50;
+
                     if (currentData.VehicleSpeed > 5)
                     {
-                        baseRpm = 1000 + (currentData.VehicleSpeed / 120.0) * 1500;
+                        // Driving RPM - mais baixo para diesel
+                        baseRpm = 1300 + (currentData.VehicleSpeed / 120.0) * 1200;
                     }
-                    currentData.EngineRPM = baseRpm + random.NextDouble() * 100 - 50;
-                    currentData.EngineRPM = Math.Max(500, Math.Min(3500, currentData.EngineRPM));
+
+                    currentData.EngineRPM = baseRpm + random.NextDouble() * 80 - 40;
+                    currentData.EngineRPM = Math.Max(1000, Math.Min(3200, currentData.EngineRPM)); // Range realista diesel
                 }
             }
 
-            // Engine load based on RPM and speed
-            double rpmFactor = Math.Max(0, (currentData.EngineRPM - 600) / 2400);
+            // Engine load based on RPM and speed - mais realista para diesel
+            double rpmFactor = Math.Max(0, (currentData.EngineRPM - 1000) / 2200);
             double speedFactor = currentData.VehicleSpeed / 120.0;
 
             if (isCriticalMode)
@@ -180,12 +356,14 @@ namespace OBDiiSimulator
             }
             else
             {
-                currentData.EngineLoad = (rpmFactor * 60 + speedFactor * 40) + random.NextDouble() * 20 - 10;
-                currentData.EngineLoad = Math.Max(0, Math.Min(100, currentData.EngineLoad));
+                // Carga mínima em marcha lenta para diesel
+                double baseLoad = currentData.VehicleSpeed < 5 ? 12 : 20;
+                currentData.EngineLoad = baseLoad + (rpmFactor * 45 + speedFactor * 35) + random.NextDouble() * 15 - 7.5;
+                currentData.EngineLoad = Math.Max(8, Math.Min(100, currentData.EngineLoad));
             }
 
             // Throttle position correlates with engine load
-            currentData.ThrottlePosition = currentData.EngineLoad * 0.8 + random.NextDouble() * 10;
+            currentData.ThrottlePosition = (currentData.EngineLoad - 8) * 0.85 + random.NextDouble() * 8;
             currentData.ThrottlePosition = Math.Max(0, Math.Min(100, currentData.ThrottlePosition));
         }
 
@@ -201,63 +379,64 @@ namespace OBDiiSimulator
                 {
                     // Critical temperatures
                     currentData.CoolantTemp = random.NextDouble() > 0.5 ?
-                        random.Next(30, 45) : random.Next(125, 145);
+                        random.Next(45, 60) : random.Next(125, 150);
                 }
                 else
                 {
-                    // Normal operating temperature with gradual changes
-                    double targetTemp = 85 + (currentData.EngineLoad / 100.0) * 15;
-                    currentData.CoolantTemp += (targetTemp - currentData.CoolantTemp) * 0.1;
-                    currentData.CoolantTemp += random.NextDouble() * 4 - 2;
-                    currentData.CoolantTemp = Math.Max(60, Math.Min(110, currentData.CoolantTemp));
+                    // Normal operating temperature - diesel opera mais quente
+                    double targetTemp = 90 + (currentData.EngineLoad / 100.0) * 18;
+                    currentData.CoolantTemp += (targetTemp - currentData.CoolantTemp) * 0.08;
+                    currentData.CoolantTemp += random.NextDouble() * 3 - 1.5;
+                    currentData.CoolantTemp = Math.Max(75, Math.Min(115, currentData.CoolantTemp));
                 }
             }
 
-            // Intake air temperature
-            double ambientTemp = 25 + Math.Sin(DateTime.Now.Hour / 24.0 * 2 * Math.PI) * 10;
-            currentData.IntakeAirTemp = ambientTemp + (currentData.EngineLoad / 100.0) * 20 + random.NextDouble() * 5;
-            currentData.IntakeAirTemp = Math.Max(10, Math.Min(70, currentData.IntakeAirTemp));
+            // Intake air temperature - mais alta para diesel
+            double ambientTemp = 25 + Math.Sin(DateTime.Now.Hour / 24.0 * 2 * Math.PI) * 12;
+            currentData.IntakeAirTemp = ambientTemp + (currentData.EngineLoad / 100.0) * 25 + random.NextDouble() * 6;
+            currentData.IntakeAirTemp = Math.Max(15, Math.Min(80, currentData.IntakeAirTemp));
 
             // Transmission temperature
-            currentData.TransmissionTemp = 80 + (currentData.EngineLoad / 100.0) * 30 + random.NextDouble() * 10;
-            currentData.TransmissionTemp = Math.Max(70, Math.Min(130, currentData.TransmissionTemp));
+            currentData.TransmissionTemp = 85 + (currentData.EngineLoad / 100.0) * 35 + random.NextDouble() * 12;
+            currentData.TransmissionTemp = Math.Max(75, Math.Min(140, currentData.TransmissionTemp));
         }
 
         private void UpdatePressures()
         {
-            // Oil pressure
+            // Oil pressure - mais alta para motores diesel
             if (isCriticalMode)
             {
-                currentData.OilPressure = random.Next(50, 90);
+                currentData.OilPressure = random.Next(80, 150);
             }
             else
             {
                 double rpmFactor = currentData.EngineRPM / 3000.0;
-                currentData.OilPressure = 250 + rpmFactor * 250 + random.NextDouble() * 50;
-                currentData.OilPressure = Math.Max(150, Math.Min(600, currentData.OilPressure));
+                currentData.OilPressure = 350 + rpmFactor * 300 + random.NextDouble() * 60;
+                currentData.OilPressure = Math.Max(200, Math.Min(800, currentData.OilPressure));
             }
 
-            // Fuel pressure
+            // Fuel pressure - sistema common rail diesel
             if (isCriticalMode)
             {
-                currentData.FuelPressure = random.Next(100, 180);
+                currentData.FuelPressure = random.Next(200, 300);
             }
             else
             {
-                currentData.FuelPressure = 400 + (currentData.EngineLoad / 100.0) * 200 + random.NextDouble() * 50;
-                currentData.FuelPressure = Math.Max(300, Math.Min(700, currentData.FuelPressure));
+                currentData.FuelPressure = 1200 + (currentData.EngineLoad / 100.0) * 400 + random.NextDouble() * 100;
+                currentData.FuelPressure = Math.Max(800, Math.Min(1800, currentData.FuelPressure));
             }
 
-            // Manifold pressure (MAP)
-            if (currentData.EngineRPM < 800)
+            // Manifold pressure (MAP) - diferente para diesel (turbo)
+            if (currentData.EngineRPM < 1100)
             {
-                currentData.ManifoldPressure = 20 + random.NextDouble() * 10; // Vacuum at idle
+                currentData.ManifoldPressure = 95 + random.NextDouble() * 10; // Próximo atmosférico
             }
             else
             {
                 double loadFactor = currentData.ThrottlePosition / 100.0;
-                currentData.ManifoldPressure = 30 + loadFactor * 70 + random.NextDouble() * 10;
-                currentData.ManifoldPressure = Math.Max(15, Math.Min(100, currentData.ManifoldPressure));
+                double turboBoost = loadFactor * 80; // Turbo pressure
+                currentData.ManifoldPressure = 100 + turboBoost + random.NextDouble() * 15;
+                currentData.ManifoldPressure = Math.Max(90, Math.Min(200, currentData.ManifoldPressure));
             }
         }
 
@@ -269,18 +448,18 @@ namespace OBDiiSimulator
             }
             else
             {
-                // Speed based on RPM and load
-                if (currentData.EngineRPM < 700)
+                // Speed based on RPM and load - considerando peso do caminhão
+                if (currentData.EngineRPM < 1100)
                 {
-                    currentData.VehicleSpeed = Math.Max(0, currentData.VehicleSpeed - 2);
+                    currentData.VehicleSpeed = Math.Max(0, currentData.VehicleSpeed - 3);
                 }
                 else
                 {
-                    double targetSpeed = (currentData.EngineRPM - 600) / 2400.0 * 120;
-                    currentData.VehicleSpeed += (targetSpeed - currentData.VehicleSpeed) * 0.1;
-                    currentData.VehicleSpeed += random.NextDouble() * 4 - 2;
+                    double targetSpeed = Math.Max(0, (currentData.EngineRPM - 1100) / 2100.0 * 100);
+                    currentData.VehicleSpeed += (targetSpeed - currentData.VehicleSpeed) * 0.08;
+                    currentData.VehicleSpeed += random.NextDouble() * 3 - 1.5;
                 }
-                currentData.VehicleSpeed = Math.Max(0, Math.Min(150, currentData.VehicleSpeed));
+                currentData.VehicleSpeed = Math.Max(0, Math.Min(120, currentData.VehicleSpeed)); // Velocidade máxima caminhão
             }
 
             // Update mileage based on speed
@@ -289,30 +468,34 @@ namespace OBDiiSimulator
                 currentData.Mileage += currentData.VehicleSpeed * (0.1 / 3600.0); // Distance in 100ms
             }
 
-            // Determine current gear based on speed
+            // Determine current gear based on speed - marchas de caminhão
             if (currentData.VehicleSpeed < 5)
                 currentData.CurrentGear = 1;
-            else if (currentData.VehicleSpeed < 15)
+            else if (currentData.VehicleSpeed < 12)
                 currentData.CurrentGear = 2;
-            else if (currentData.VehicleSpeed < 30)
+            else if (currentData.VehicleSpeed < 20)
                 currentData.CurrentGear = 3;
-            else if (currentData.VehicleSpeed < 50)
+            else if (currentData.VehicleSpeed < 35)
                 currentData.CurrentGear = 4;
-            else if (currentData.VehicleSpeed < 70)
+            else if (currentData.VehicleSpeed < 50)
                 currentData.CurrentGear = 5;
-            else
+            else if (currentData.VehicleSpeed < 70)
                 currentData.CurrentGear = 6;
+            else if (currentData.VehicleSpeed < 90)
+                currentData.CurrentGear = 7;
+            else
+                currentData.CurrentGear = 8;
         }
 
         private void UpdateFuelParameters()
         {
-            // Fuel consumption based on load and RPM
-            double baseConsumption = 20; // L/100km base
+            // Fuel consumption based on load and RPM - mais realista para diesel
+            double baseConsumption = 25; // L/100km base para caminhão diesel
             double loadFactor = currentData.EngineLoad / 100.0;
-            double rpmFactor = Math.Max(0, (currentData.EngineRPM - 600) / 2400.0);
+            double rpmFactor = Math.Max(0, (currentData.EngineRPM - 1000) / 2200.0);
 
-            currentData.FuelConsumption = baseConsumption + loadFactor * 15 + rpmFactor * 10;
-            currentData.FuelConsumption = Math.Max(15, Math.Min(50, currentData.FuelConsumption));
+            currentData.FuelConsumption = baseConsumption + loadFactor * 20 + rpmFactor * 12;
+            currentData.FuelConsumption = Math.Max(18, Math.Min(65, currentData.FuelConsumption));
 
             // Fuel level decreases over time based on consumption
             if (currentData.VehicleSpeed > 1)
@@ -327,7 +510,7 @@ namespace OBDiiSimulator
             {
                 currentData.FuelSystemStatus = "OPEN_LOOP_FAULT";
             }
-            else if (currentData.CoolantTemp < 70)
+            else if (currentData.CoolantTemp < 75)
             {
                 currentData.FuelSystemStatus = "OPEN_LOOP";
             }
@@ -343,12 +526,12 @@ namespace OBDiiSimulator
 
         private void UpdateSensorData()
         {
-            // Oxygen sensors - simulate lambda values
+            // Oxygen sensors - simulate lambda values para diesel
             if (currentData.FuelSystemStatus == "CLOSED_LOOP")
             {
                 // Normal operation around stoichiometric (0.45V)
-                currentData.OxygenSensor1 = 0.45 + Math.Sin(DateTime.Now.Millisecond / 100.0) * 0.3;
-                currentData.OxygenSensor2 = 0.45 + Math.Sin((DateTime.Now.Millisecond + 500) / 100.0) * 0.3;
+                currentData.OxygenSensor1 = 0.45 + Math.Sin(DateTime.Now.Millisecond / 100.0) * 0.25;
+                currentData.OxygenSensor2 = 0.45 + Math.Sin((DateTime.Now.Millisecond + 500) / 100.0) * 0.25;
             }
             else
             {
@@ -363,24 +546,24 @@ namespace OBDiiSimulator
 
         private void UpdateElectricalSystems()
         {
-            // Battery voltage
-            if (currentData.EngineRPM > 1000)
+            // Battery voltage - sistema 24V de caminhão
+            if (currentData.EngineRPM > 1200)
             {
                 // Engine running - alternator charging
-                currentData.BatteryVoltage = 13.8 + random.NextDouble() * 0.6;
+                currentData.BatteryVoltage = 27.6 + random.NextDouble() * 1.2;
             }
             else
             {
                 // Engine off or idling
-                currentData.BatteryVoltage = 12.4 + random.NextDouble() * 0.8;
+                currentData.BatteryVoltage = 24.8 + random.NextDouble() * 1.6;
             }
 
             if (isCriticalMode)
             {
-                currentData.BatteryVoltage = 10.5 + random.NextDouble() * 2.0; // Low voltage
+                currentData.BatteryVoltage = 21.0 + random.NextDouble() * 4.0; // Low voltage
             }
 
-            currentData.BatteryVoltage = Math.Max(9.0, Math.Min(15.0, currentData.BatteryVoltage));
+            currentData.BatteryVoltage = Math.Max(18.0, Math.Min(30.0, currentData.BatteryVoltage));
         }
     }
 }
