@@ -22,7 +22,7 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Copiar arquivo de ambiente
-COPY .env ./
+COPY .env
 
 # Definir variável de ambiente para a porta
 ENV ASPNETCORE_URLS=http://+:5000
