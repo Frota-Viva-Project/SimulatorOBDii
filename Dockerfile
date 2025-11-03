@@ -11,7 +11,7 @@ WORKDIR /app
 
 # Copiar arquivos da aplicação
 COPY OBDiiSimulator/bin/Release/ ./
-COPY OBDiiSimulator/.env ./
+COPY .env ./
 
 # Expor a porta que a aplicação usa
 EXPOSE 5000
