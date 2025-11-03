@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace OBDiiSimulator
@@ -534,6 +535,88 @@ namespace OBDiiSimulator
                     button.Enabled = true;
                     button.Text = "Mandar pro Banco de Dados";
                 }
+            }
+        }
+
+        private async void CheckAlerts_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OnLogMessage("Verificando alertas do Arduino...");
+
+                // Desabilita o botão temporariamente
+                var button = sender as Button;
+                if (button != null)
+                {
+                    button.Enabled = false;
+                    button.Text = "Verificando...";
+                }
+
+                // Força verificação de alertas (usando ID 1 como exemplo)
+                await dataSimulator.ForceAlertCheckAsync(1);
+
+                // Reabilita o botão
+                if (button != null)
+                {
+                    button.Enabled = true;
+                    button.Text = "Verificar Alertas";
+                }
+
+                OnLogMessage("Verificação de alertas concluída!");
+            }
+            catch (Exception ex)
+            {
+                OnLogMessage($"Erro ao verificar alertas: {ex.Message}");
+                MessageBox.Show($"Erro ao verificar alertas: {ex.Message}", "Erro",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+
+                // Reabilita o botão em caso de erro
+                var button = sender as Button;
+                if (button != null)
+                {
+                    button.Enabled = true;
+                    button.Text = "Verificar Alertas";
+                }
+            }
+        }
+
+        private async void SimulateCritical_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OnLogMessage("Simulando condições críticas...");
+                
+                dataSimulator.SimulateCriticalConditions();
+                
+                // Aguardar um momento para os dados serem atualizados na interface
+                await Task.Delay(500);
+                
+                // Verificar alertas automaticamente
+                await dataSimulator.ForceAlertCheckAsync(1);
+                
+                OnLogMessage("Condições críticas simuladas e alertas verificados!");
+            }
+            catch (Exception ex)
+            {
+                OnLogMessage($"Erro ao simular condições críticas: {ex.Message}");
+                MessageBox.Show($"Erro: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void RestoreNormal_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                OnLogMessage("Restaurando condições normais...");
+                
+                dataSimulator.RestoreNormalConditions();
+                
+                OnLogMessage("Condições normais restauradas!");
+            }
+            catch (Exception ex)
+            {
+                OnLogMessage($"Erro ao restaurar condições: {ex.Message}");
+                MessageBox.Show($"Erro: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }

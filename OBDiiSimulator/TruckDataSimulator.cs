@@ -30,6 +30,8 @@ namespace OBDiiSimulator
         // Database configuration
         private readonly Database database;
         private readonly int truckId;
+        private readonly AlertManager alertManager;
+        private DateTime lastAlertCheck = DateTime.Now;
 
         public event Action<TruckData> DataUpdated;
 
@@ -37,10 +39,12 @@ namespace OBDiiSimulator
         {
             this.truckId = truckId;
             this.database = new Database(); // Usa connection string do app.config
+            this.alertManager = new AlertManager(database);
             currentData = new TruckData();
             random = new Random();
             startTime = DateTime.Now;
             lastDatabaseSend = DateTime.Now;
+            lastAlertCheck = DateTime.Now;
             baselineMileage = currentData.Mileage;
         }
 
@@ -48,10 +52,12 @@ namespace OBDiiSimulator
         {
             this.truckId = truckId;
             this.database = database ?? throw new ArgumentNullException(nameof(database));
+            this.alertManager = new AlertManager(database);
             currentData = new TruckData();
             random = new Random();
             startTime = DateTime.Now;
             lastDatabaseSend = DateTime.Now;
+            lastAlertCheck = DateTime.Now;
             baselineMileage = currentData.Mileage;
         }
 
@@ -142,6 +148,78 @@ namespace OBDiiSimulator
             return await database.TestConnectionAsync();
         }
 
+        /// <summary>
+        /// Força a verificação de alertas manualmente
+        /// </summary>
+        /// <param name="idUsuario">ID do usuário</param>
+        public async Task ForceAlertCheckAsync(int idUsuario)
+        {
+            try
+            {
+                await alertManager.MonitorAndProcessAlertsAsync(currentData, idUsuario);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao forçar verificação de alertas: {ex.Message}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Simula condições críticas para testar alertas
+        /// </summary>
+        public void SimulateCriticalConditions()
+        {
+            Console.WriteLine("🚨 Simulando condições críticas para teste de alertas...");
+            
+            // Temperatura alta
+            currentData.CoolantTemp = 125.0;
+            
+            // Pressão de óleo baixa
+            currentData.OilPressure = 100.0;
+            
+            // Combustível baixo
+            currentData.FuelLevel = 8.0;
+            
+            // Bateria baixa
+            currentData.BatteryVoltage = 20.5;
+            
+            // RPM alto
+            currentData.EngineRPM = 3500;
+            
+            // Adicionar DTC crítico
+            currentData.ForceAddDTC("P0300", true); // Misfire
+            currentData.ForceAddDTC("P0118", true); // Coolant temp high
+            
+            Console.WriteLine("✅ Condições críticas simuladas:");
+            Console.WriteLine($"   - Temperatura: {currentData.CoolantTemp}°C");
+            Console.WriteLine($"   - Pressão óleo: {currentData.OilPressure} kPa");
+            Console.WriteLine($"   - Combustível: {currentData.FuelLevel}%");
+            Console.WriteLine($"   - Bateria: {currentData.BatteryVoltage}V");
+            Console.WriteLine($"   - RPM: {currentData.EngineRPM}");
+            Console.WriteLine($"   - DTCs ativos: {currentData.ActiveDTCs.Count}");
+        }
+
+        /// <summary>
+        /// Restaura condições normais
+        /// </summary>
+        public void RestoreNormalConditions()
+        {
+            Console.WriteLine("🔧 Restaurando condições normais...");
+            
+            // Valores normais
+            currentData.CoolantTemp = 88.0;
+            currentData.OilPressure = 450.0;
+            currentData.FuelLevel = 75.0;
+            currentData.BatteryVoltage = 24.2;
+            currentData.EngineRPM = 1200.0;
+            
+            // Limpar DTCs
+            currentData.ClearAllDTCs();
+            
+            Console.WriteLine("✅ Condições normais restauradas");
+        }
+
         private void SimulationLoop(CancellationToken cancellationToken)
         {
             int dtcCounter = 0;
@@ -162,6 +240,25 @@ namespace OBDiiSimulator
                     {
                         currentData.PromotePendingDTCs();
                     }
+                }
+
+                // Verificar alertas a cada 30 segundos
+                if (DateTime.Now - lastAlertCheck >= TimeSpan.FromSeconds(30))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            // Usar truckId como idUsuario por simplicidade
+                            // Em um cenário real, você teria uma tabela de mapeamento
+                            await alertManager.MonitorAndProcessAlertsAsync(currentData, truckId);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Erro no monitoramento de alertas: {ex.Message}");
+                        }
+                    });
+                    lastAlertCheck = DateTime.Now;
                 }
 
                 DataUpdated?.Invoke(currentData);
