@@ -1,20 +1,30 @@
-# Use a imagem base do .NET Framework runtime
-FROM mcr.microsoft.com/dotnet/framework/runtime:4.8-windowsservercore-ltsc2019
-
-# Instalar IIS e ASP.NET
-RUN powershell -Command \
-    Add-WindowsFeature Web-Server; \
-    Add-WindowsFeature Web-Asp-Net45
-
-# Definir diretório de trabalho
+# Dockerfile para Render - Apenas API Web
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 WORKDIR /app
-
-# Copiar arquivos da aplicação
-COPY OBDiiSimulator/bin/Release/ ./
-COPY .env ./
-
-# Expor a porta que a aplicação usa
 EXPOSE 5000
 
-# Comando para executar a aplicação
-CMD ["OBDiiSimulator.exe", "--api"]
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# Criar projeto da API separado
+COPY ["OBDiiApiWeb/OBDiiApiWeb.csproj", "OBDiiApiWeb/"]
+RUN dotnet restore "OBDiiApiWeb/OBDiiApiWeb.csproj"
+
+COPY . .
+WORKDIR "/src/OBDiiApiWeb"
+RUN dotnet build "OBDiiApiWeb.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "OBDiiApiWeb.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# Copiar arquivo de ambiente
+COPY .env ./
+
+# Definir variável de ambiente para a porta
+ENV ASPNETCORE_URLS=http://+:5000
+
+ENTRYPOINT ["dotnet", "OBDiiApiWeb.dll"]
